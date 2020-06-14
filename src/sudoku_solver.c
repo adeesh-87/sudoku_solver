@@ -33,6 +33,7 @@ void sudoku_printer(cell **grid);
 void sudoku_solver_row(cell **grid, sudoku_stats *st);
 void sudoku_solver_box(cell **grid, sudoku_stats *st);
 void sudoku_solver_cell(cell **grid, sudoku_stats *st);
+void sudoku_solver_column(cell **grid, sudoku_stats *st);
 static void sudoku_printStats(sudoku_stats *st);
 
 static inline int count_ones(int a)
@@ -122,7 +123,7 @@ int main(int argc, char *argv[])
   if (argc > 1) {
 	test_file = fopen(argv[1], "r");
   } else {
-	test_file = fopen("puzzle2.txt", "r");
+	test_file = fopen("test/puzzle.txt", "r");
   }
 
   int num_solved_prev = 0;
@@ -136,8 +137,9 @@ int main(int argc, char *argv[])
   while (num_solved_prev != num_solved) {
 	num_solved_prev = num_solved;
 	sudoku_solver_row(grid, &g_stats);
-	sudoku_solver_box(grid, &g_stats);
 	sudoku_solver_cell(grid, &g_stats);
+	sudoku_solver_box(grid, &g_stats);
+	sudoku_solver_column(grid, &g_stats);
   }
   sudoku_printer(grid);
 	
@@ -236,6 +238,27 @@ void sudoku_solver_column(cell **grid, sudoku_stats *st)
   for (int c = 0; c < 9; c++) {
 	for (int e = 0; e < 9; e++) {
 	  unsigned int avl = 0x01FF;
+	  if (st->col[c] & (1 << e)) {
+		for (int r = 0; r < 9; r++) {
+		  if (grid[r][c].val || ((st->row[r] & (1 << e)) == 0)) {
+			avl &= ~(1 << r);
+		  }
+		}
+		for (int b = 0; b < 3; b++) {
+		  if ((st->box[c/3 + 3*b] & (1 << e)) == 0)
+			avl &= ~(0x00000007 << (3*b));
+		}
+		int num;
+		if ((num = count_ones(avl)) == 1) {
+		  int v = log2(avl);
+		  grid[v][c].val = e+1;
+		  st->row[v] &= ~(1 << e);
+		  st->col[c] &= ~(1 << e);
+		  st->box[3*(v/3) + c/3] &= ~(1 << e);
+		  num_solved++;
+		  printf("Col solver put %d @ [%d,%d]\n", e+1, v, c);
+		}
+	  }
 	}
   }
 }
